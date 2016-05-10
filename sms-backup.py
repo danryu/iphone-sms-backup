@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # Copyright (c) 2011 Tom Offermann
+# Copyright (c) 2016 HyperNerd Inc. (updated to Python 3.5.1 codebase Only)
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the 'Software'), to deal
@@ -20,8 +21,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import argparse
 import csv
-import cStringIO
+from io import StringIO
 import fnmatch
 import json
 import logging
@@ -34,17 +36,6 @@ import tempfile
 
 from datetime import datetime
 
-# argparse isn't in standard library until 2.7
-try:
-    test = argparse.ArgumentParser()
-except NameError:
-    try:
-        import argparse
-    except:
-        print "argparse required. Try `pip install argparse`."
-        sys.exit(1)
-        
-# silence Python 2.6 buggy warnings about Exception.message
 # See: http://code.google.com/p/argparse/issues/detail?id=25
 if sys.version_info[:2] == (2, 6):
     import warnings
@@ -58,6 +49,7 @@ if sys.version_info[:2] == (2, 6):
 ORIG_DB = 'test.db'
 COPY_DB = None
 
+
 def setup_and_parse(parser):
     """
     Set up ArgumentParser with all options and then parse_args().
@@ -65,77 +57,94 @@ def setup_and_parse(parser):
     Return args.
     """
     log_group = parser.add_mutually_exclusive_group()
-    log_group.add_argument("-q", "--quiet", action='store_true', 
-            help="Decrease running commentary.")
-    log_group.add_argument("-v", "--verbose", action='store_true', 
-            help="Increase running commentary.")
+    log_group.add_argument("-q", "--quiet",
+                           action='store_true',
+                           help="Decrease running commentary.")
+    log_group.add_argument("-v", "--verbose",
+                           action='store_true',
+                           help="Increase running commentary.")
     
     # Format Options Group
     format_group = parser.add_argument_group('Format Options')
-    format_group.add_argument("-a", "--alias", action="append", 
-            dest="aliases", metavar="ADDRESS=NAME",
-            help="Key-value pair (.ini style) that maps an address "
-                 "(phone number or email) to a name. Name replaces "
-                 "address in output. Can be used multiple times. Optional. "
-                 "If not present, address is used in output.")
+    format_group.add_argument("-a", "--alias",
+                              action="append",
+                              dest="aliases",
+                              metavar="ADDRESS=NAME",
+                              help="Key-value pair (.ini style) that maps an address (phone number or email) "
+                                   "to a name. Name replaces address in output. Can be used multiple times. "
+                                   "Optional. If not present, address is used in output.")
                  
-    format_group.add_argument("-d", "--date-format", dest="date_format",
-            metavar="FORMAT", default="%Y-%m-%d %H:%M:%S",
-            help="Date format string. Optional. Default: '%(default)s'.")
+    format_group.add_argument("-d", "--date-format",
+                              dest="date_format",
+                              metavar="FORMAT",
+                              default="%Y-%m-%d %H:%M:%S",
+                              help="Date format string. Optional. Default: '%(default)s'.")
                  
-    format_group.add_argument("-f", "--format", dest="format", 
-            choices = ['human', 'csv', 'json'], default = 'human', 
-            help="How output is formatted. Valid options: 'human' "
-                 "(fields separated by pipe), 'csv', or 'json'. "
-                 "Optional. Default: '%(default)s'.")
+    format_group.add_argument("-f", "--format",
+                              dest="format",
+                              choices=['human', 'csv', 'json'],
+                              default='human',
+                              help="How output is formatted. Valid options: 'human' (fields separated by pipe),"
+                                   " 'csv', or 'json'. Optional. Default: '%(default)s'.")
                  
-    format_group.add_argument("-m", "--myname", dest="identity", 
-            metavar="NAME", default = 'Me',
-            help="Name of iPhone owner in output. Optional. "
-                 "Default name: '%(default)s'.")
+    format_group.add_argument("-m", "--myname",
+                              dest="identity",
+                              metavar="NAME",
+                              default='Me',
+                              help="Name of iPhone owner in output. Optional. Default name: '%(default)s'.")
     
     # Output Options Group
     output_group = parser.add_argument_group('Output Options')
-    output_group.add_argument("-o", "--output", dest="output", metavar="FILE",
-            help="Name of output file. Optional. Default "
-                 "(if not present): Output to STDOUT.")
+    output_group.add_argument("-o", "--output",
+                              dest="output",
+                              metavar="FILE",
+                              help="Name of output file. Optional. Default (if not present): Output to STDOUT.")
                  
-    output_group.add_argument("-e", "--email", action="append",
-            dest="emails", metavar="EMAIL",
-            help="Limit output to iMessage messages to/from this email "
-                 "address. Can be used multiple times. Optional. Default (if "
-                 "not present): All iMessages included.")
+    output_group.add_argument("-e", "--email",
+                              action="append",
+                              dest="emails",
+                              metavar="EMAIL",
+                              help="Limit output to iMessage messages to/from this email address. Can be used "
+                                   "multiple times. Optional. Default (if not present): All iMessages included.")
     
-    output_group.add_argument("-p", "--phone", action="append",
-            dest="numbers", metavar="PHONE",
-            help="Limit output to sms messages to/from this phone number. "
-                 "Can be used multiple times. Optional. Default (if "
-                 "not present): All messages from all numbers included.")
+    output_group.add_argument("-p", "--phone",
+                              action="append",
+                              dest="numbers",
+                              metavar="PHONE",
+                              help="Limit output to sms messages to/from this phone number. Can be used multiple times."
+                                   " Optional. Default (if not present): All messages from all numbers included.")
     
-    output_group.add_argument("--no-header", dest="header", 
-            action="store_false", default=True, help="Don't print header "
-            "row for 'human' or 'csv' formats. Optional. Default (if not "
-            "present): Print header row.")
+    output_group.add_argument("--no-header",
+                              dest="header",
+                              action="store_false",
+                              default=True,
+                              help="Don't print header row for 'human' or 'csv' formats. Optional. Default (if not "
+                                   "present): Print header row.")
             
     # Input Options Group
     input_group = parser.add_argument_group('Input Options')
-    input_group.add_argument("-i", "--input", dest="db_file", metavar="FILE",
-            help="Name of SMS db file. Optional. Default: Script will find "
-                 "and use db in standard backup location.")
+    input_group.add_argument("-i", "--input",
+                             dest="db_file",
+                             metavar="FILE",
+                             help="Name of SMS db file. Optional. Default: Script will find and use db in standard "
+                                  "backup location.")
             
     args = parser.parse_args()
     return args
+
 
 def strip(phone):
     """Remove all non-numeric digits in phone string."""
     if phone:
         return re.sub('[^\d]', '', phone)
 
+
 def trunc(phone):
     """Strip phone, then truncate it.  Return last 10 digits"""
     if phone:
         ph = strip(phone)
         return ph[-10:]
+
 
 def format_phone(phone):
     """
@@ -153,9 +162,10 @@ def format_phone(phone):
         phone = ph
     elif len(ph) == 10:
         phone = "(%s) %s-%s" % (ph[-10:-7], ph[-7:-4], ph[-4:])
-    elif len(ph) == 11 and ph[0] =='1':
+    elif len(ph) == 11 and ph[0] == '1':
         phone = "(%s) %s-%s" % (ph[-10:-7], ph[-7:-4], ph[-4:])
     return phone.decode('utf-8')
+
 
 def format_address(address):
     """If address is email, leave alone.  Otherwise, call format_phone()."""
@@ -163,6 +173,7 @@ def format_address(address):
     if not m:
         address = format_phone(address)
     return address
+
 
 def valid_phone(phone):
     """
@@ -183,6 +194,7 @@ def valid_phone(phone):
             ret_val = True
     return ret_val
 
+
 def validate_aliases(aliases):
     """Raise exception if any alias is not in 'address = name' format."""
     if aliases:
@@ -199,12 +211,14 @@ def validate_aliases(aliases):
                     raise ValueError("OPTION ERROR: Invalid phone number "
                                      "in --alias.")
 
+
 def validate_numbers(numbers):
     """Raise exception if invalid phone number found."""
     if numbers:
         for n in numbers:
             if not valid_phone(n):
                 raise ValueError("OPTION ERROR: Invalid number in --number.")
+
 
 def validate(args):
     """
@@ -216,13 +230,15 @@ def validate(args):
         validate_aliases(args.aliases)
         validate_numbers(args.numbers)
     except ValueError as err:
-        print err, '\n'
+        print(err, '\n')
         raise
+
 
 def most_recent(paths):
     """Return path of most recently modified file."""
     paths.sort(key=lambda x: os.path.getmtime(x))
     return paths[-1]
+
 
 def find_sms_db():
     """Find sms db and return its filename."""
@@ -244,30 +260,32 @@ def find_sms_db():
         path = most_recent(paths)
     return path
 
+
 def copy_sms_db(db):
     """Copy db to a tmp file, and return filename of copy."""
     try:
         orig = open(db, 'rb')
-    except:
-        logging.error("Unable to open DB file: %s" % db)
+    except IOError as e:
+        logging.error("Unable to open DB file: {db} - {error}".foormat(db=db, error=e))
         sys.exit(1)
     
     try:
         copy = tempfile.NamedTemporaryFile(delete=False)
-    except:
-        logging.error("Unable to make tmp file.")
+    except IOError as e:
+        logging.error("Unable to make tmp file.", e)
         orig.close()
         sys.exit(1)
         
     try:
         shutil.copyfileobj(orig, copy)
-    except:
-        logging.error("Unable to copy DB.")
+    except IOError as e:
+        logging.error("Unable to copy DB.", e)
         sys.exit(1)
     finally:
         orig.close()
         copy.close()
     return copy.name
+
 
 def alias_map(aliases):
     """
@@ -290,6 +308,7 @@ def alias_map(aliases):
             amap[key] = alias.decode('utf-8')
     return amap
 
+
 def which_db_version(cursor):
     """
     Return version of DB schema as string.
@@ -307,21 +326,21 @@ def which_db_version(cursor):
         db_version = '5'
     return db_version
 
+
 def build_msg_query(numbers, emails):
-    """
-    Build the query for SMS and iMessage messages.
-    
+    """Build the query for SMS and iMessage messages.
+
     If `numbers` or `emails` is not None, that means we're querying for a
     subset of messages. Phone number is in `address` field for SMS messages,
     and in `madrid_handle` for iMessage. Email is only in `madrid_handle`.
-    
+
     Because of inconsistently formatted phone numbers, we run both passed-in
     numbers and numbers in DB through trunc() before comparing them.
-    
+
     If `numbers` is None, then we select all messages.
-    
-    Returns: query (string), params (tuple)
-    """
+
+    Returns: query (string), params (tuple)"""
+
     query = """
 SELECT 
     rowid, 
@@ -354,6 +373,7 @@ FROM message """
         query = query + where
     query = query + "\nORDER by rowid"
     return query, tuple(params)
+
 
 def build_msg_query_ios6(numbers, emails):
     """
@@ -396,6 +416,7 @@ WHERE
     query = query + "\nORDER by m.rowid"
     return query, tuple(params)
 
+
 def fix_imessage_date(seconds):
     """
     Convert seconds to unix epoch time.
@@ -409,6 +430,7 @@ def fix_imessage_date(seconds):
     (Thanks, Google Translate!)
     """
     return seconds + 978307200
+
 
 def imessage_date(row):
     """
@@ -424,15 +446,23 @@ def imessage_date(row):
         im_date = row['madrid_date_read']
     return fix_imessage_date(im_date)
 
+
 def convert_date(unix_date, format):
     """Convert unix epoch time string to formatted date string."""
     dt = datetime.fromtimestamp(int(unix_date))
     ds = dt.strftime(format)
-    return ds.decode('utf-8')
+    if isinstance(ds, bytes):
+        return ds.decode('utf-8')
+    return ds
+
+    #return ds
+
+
 
 def convert_date_ios6(unix_date, format):
     date = fix_imessage_date(unix_date)
     return convert_date(date, format)
+
 
 def convert_address_imessage(row, me, alias_map):
     """
@@ -451,7 +481,7 @@ def convert_address_imessage(row, me, alias_map):
     incoming_flags = (12289, 77825)
     outgoing_flags = (36869, 102405)
     
-    if isinstance(me, str): 
+    if isinstance(me, bytes):
         me = me.decode('utf-8')
         
     # If madrid_handle is phone number, have to truncate it.
@@ -475,6 +505,7 @@ def convert_address_imessage(row, me, alias_map):
         
     return (from_addr, to_addr)
 
+
 def convert_address_sms(row, me, alias_map):
     """
     Find the sms address in row (a sqlite3.Row) and return a tuple of address
@@ -489,7 +520,7 @@ def convert_address_sms(row, me, alias_map):
         2 = 'incoming'
         3 = 'outgoing'
     """
-    if isinstance(me, str): 
+    if isinstance(me, bytes):
         me = me.decode('utf-8')
     
     tr_address = trunc(row['address'])
@@ -507,8 +538,9 @@ def convert_address_sms(row, me, alias_map):
         
     return (from_addr, to_addr)
 
+
 def convert_address_ios6(row, me, alias_map):
-    if isinstance(me, str):
+    if isinstance(me, bytes):
         me = me.decode('utf-8')
 
     address = row['id']
@@ -532,6 +564,7 @@ def convert_address_ios6(row, me, alias_map):
 
     return (from_addr, to_addr)
 
+
 def clean_text_msg(txt):
     """
     Return cleaned-up text message.
@@ -541,7 +574,8 @@ def clean_text_msg(txt):
 
     """
     txt = txt or ''
-    return txt.replace("\015","\n")
+    return txt.replace("\015", "\n")
+
 
 def skip_sms(row):
     """Return True, if sms row should be skipped."""
@@ -559,6 +593,7 @@ def skip_sms(row):
                         (row['rowid'], row['address']))
         retval = True
     return retval
+
 
 def skip_imessage(row):
     """
@@ -607,6 +642,7 @@ def skip_imessage(row):
         retval = True
     return retval
 
+
 def get_messages(cursor, query, params, aliases, cmd_args):
     cursor.execute(query, params)
     logging.debug("Run query: %s" % (query))
@@ -615,7 +651,8 @@ def get_messages(cursor, query, params, aliases, cmd_args):
     messages = []
     for row in cursor:
         if row['is_madrid'] == 1:
-            if skip_imessage(row): continue
+            if skip_imessage(row):
+                continue
             im_date = imessage_date(row)
             fmt_date = convert_date(im_date, cmd_args.date_format)
             fmt_from, fmt_to = convert_address_imessage(row, cmd_args.identity, aliases)
@@ -629,6 +666,7 @@ def get_messages(cursor, query, params, aliases, cmd_args):
                'text': clean_text_msg(row['text'])}
         messages.append(msg)
     return messages
+
 
 def get_messages_ios6(cursor, query, params, aliases, cmd_args):
     cursor.execute(query, params)
@@ -645,6 +683,7 @@ def get_messages_ios6(cursor, query, params, aliases, cmd_args):
                'text': clean_text_msg(row['text'])}
         messages.append(msg)
     return messages
+
 
 def msgs_human(messages, header):
     """
@@ -683,28 +722,31 @@ def msgs_human(messages, header):
                                   m['to'], to_width, text)
             msgs.append(msg)
         msgs.append('')
-        output = '\n'.join(msgs).encode('utf-8')
+        output = '\n'.join(msgs)
     return output
+
 
 def msgs_csv(messages, header):
     """Return messages in .csv format."""
-    queue = cStringIO.StringIO()
+    queue = StringIO()
     writer = csv.writer(queue, dialect=csv.excel, quoting=csv.QUOTE_ALL)
     if header:
         writer.writerow(['Date', 'From', 'To', 'Text'])
     for m in messages:
-        writer.writerow([m['date'].encode('utf-8'),
-                         m['from'].encode('utf-8'),
-                         m['to'].encode('utf-8'),
-                         m['text'].encode('utf-8')])
+        writer.writerow([m['date'],
+                         m['from'],
+                         m['to'],
+                         m['text']])
     output = queue.getvalue()
     queue.close()
     return output
 
+
 def msgs_json(messages, header=False):
     """Return messages in JSON format"""
     output = json.dumps(messages, sort_keys=True, indent=2, ensure_ascii=False)
-    return output.encode('utf-8')
+    return output
+
 
 def output(messages, out_file, format, header):
     """Output messages to out_file in format."""
@@ -713,9 +755,12 @@ def output(messages, out_file, format, header):
     else:
         fh = sys.stdout
         
-    if format == 'human': fmt_msgs = msgs_human
-    elif format == 'csv': fmt_msgs = msgs_csv
-    elif format == 'json': fmt_msgs = msgs_json
+    if format == 'human':
+        fmt_msgs = msgs_human
+    elif format == 'csv':
+        fmt_msgs = msgs_csv
+    elif format == 'json':
+        fmt_msgs = msgs_json
     
     try:
         fh.write(fmt_msgs(messages, header))
@@ -723,6 +768,7 @@ def output(messages, out_file, format, header):
         raise
         
     fh.close()
+
 
 def main():
         parser = argparse.ArgumentParser()

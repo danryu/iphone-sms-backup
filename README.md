@@ -1,8 +1,12 @@
 Description
 ===========
+
+Note: This version of the script is only compatible with Python 3!
+
+
 Backup your iPhone SMS and iMessage text messages.
 
-Works with iOS6 and iOS7.
+Works with iOS6, iOS7, Tested successfully with ios9.
 
 (And, it continues to work with iOS5, if anyone still finds that useful...)
 
@@ -149,3 +153,4 @@ Known Limitations
 License
 =======
 MIT License.  Copyright 2011 Tom Offermann.
+MIT License.  Copyright 2016 HyperNerd Inc. - Updated to with Python 3
