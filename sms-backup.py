@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 # Copyright (c) 2011 Tom Offermann
-# Copyright (c) 2016 HyperNerd Inc. (updated to Python 3.5.1 codebase Only)
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the 'Software'), to deal
