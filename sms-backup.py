@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
 # Copyright (c) 2011 Tom Offermann
-# 
+#    Changes: danryu - 2018 (add support for iOS 11)
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the 'Software'), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
-# The above copyright notice and this permission notice shall be included in 
+#
+# The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -52,7 +53,7 @@ COPY_DB = None
 def setup_and_parse(parser):
     """
     Set up ArgumentParser with all options and then parse_args().
-    
+
     Return args.
     """
     log_group = parser.add_mutually_exclusive_group()
@@ -62,7 +63,7 @@ def setup_and_parse(parser):
     log_group.add_argument("-v", "--verbose",
                            action='store_true',
                            help="Increase running commentary.")
-    
+
     # Format Options Group
     format_group = parser.add_argument_group('Format Options')
     format_group.add_argument("-a", "--alias",
@@ -72,54 +73,54 @@ def setup_and_parse(parser):
                               help="Key-value pair (.ini style) that maps an address (phone number or email) "
                                    "to a name. Name replaces address in output. Can be used multiple times. "
                                    "Optional. If not present, address is used in output.")
-                 
+
     format_group.add_argument("-d", "--date-format",
                               dest="date_format",
                               metavar="FORMAT",
                               default="%Y-%m-%d %H:%M:%S",
                               help="Date format string. Optional. Default: '%(default)s'.")
-                 
+
     format_group.add_argument("-f", "--format",
                               dest="format",
                               choices=['human', 'csv', 'json'],
                               default='human',
                               help="How output is formatted. Valid options: 'human' (fields separated by pipe),"
                                    " 'csv', or 'json'. Optional. Default: '%(default)s'.")
-                 
+
     format_group.add_argument("-m", "--myname",
                               dest="identity",
                               metavar="NAME",
                               default='Me',
                               help="Name of iPhone owner in output. Optional. Default name: '%(default)s'.")
-    
+
     # Output Options Group
     output_group = parser.add_argument_group('Output Options')
     output_group.add_argument("-o", "--output",
                               dest="output",
                               metavar="FILE",
                               help="Name of output file. Optional. Default (if not present): Output to STDOUT.")
-                 
+
     output_group.add_argument("-e", "--email",
                               action="append",
                               dest="emails",
                               metavar="EMAIL",
                               help="Limit output to iMessage messages to/from this email address. Can be used "
                                    "multiple times. Optional. Default (if not present): All iMessages included.")
-    
+
     output_group.add_argument("-p", "--phone",
                               action="append",
                               dest="numbers",
                               metavar="PHONE",
                               help="Limit output to sms messages to/from this phone number. Can be used multiple times."
                                    " Optional. Default (if not present): All messages from all numbers included.")
-    
+
     output_group.add_argument("--no-header",
                               dest="header",
                               action="store_false",
                               default=True,
                               help="Don't print header row for 'human' or 'csv' formats. Optional. Default (if not "
                                    "present): Print header row.")
-            
+
     # Input Options Group
     input_group = parser.add_argument_group('Input Options')
     input_group.add_argument("-i", "--input",
@@ -127,7 +128,7 @@ def setup_and_parse(parser):
                              metavar="FILE",
                              help="Name of SMS db file. Optional. Default: Script will find and use db in standard "
                                   "backup location.")
-            
+
     args = parser.parse_args()
     return args
 
@@ -180,13 +181,13 @@ def format_address(address):
 
 def valid_phone(phone):
     """
-    Simple validation of phone number. 
-    
-    It is considered a valid phone number if: 
+    Simple validation of phone number.
+
+    It is considered a valid phone number if:
         * It does not contain any letters
         * It does not contain the '@' sign
         * It has at least 3 digits, after stripping all non-numeric digits.
-    
+
     Returns True if valid, False if not.
     """
     ret_val = False
@@ -226,7 +227,7 @@ def validate_numbers(numbers):
 def validate(args):
     """
     Make sure aliases and numbers are valid.
-    
+
     If invalid arg found, print error msg and raise exception.
     """
     try:
@@ -254,7 +255,7 @@ def find_sms_db():
                 path = os.path.join(root, basename)
                 paths.append(path)
     if len(paths) == 0:
-        logging.warning("No SMS db found.") 
+        logging.warning("No SMS db found.")
         path = None
     elif len(paths) == 1:
         path = paths[0]
@@ -271,14 +272,14 @@ def copy_sms_db(db):
     except IOError as e:
         logging.error("Unable to open DB file: {db} - {error}".foormat(db=db, error=e))
         sys.exit(1)
-    
+
     try:
         copy = tempfile.NamedTemporaryFile(delete=False)
     except IOError as e:
         logging.error("Unable to make tmp file.", e)
         orig.close()
         sys.exit(1)
-        
+
     try:
         shutil.copyfileobj(orig, copy)
     except IOError as e:
@@ -293,8 +294,8 @@ def copy_sms_db(db):
 def alias_map(aliases):
     """
     Convert .ini-style aliases to dict.
-    
-    Key: phone number or email address.  (We truncate phone numbers for 
+
+    Key: phone number or email address.  (We truncate phone numbers for
          consistent formatting.)
     Value: Alias
     """
@@ -307,7 +308,7 @@ def alias_map(aliases):
             # Is key an email address?
             m2 = re.search('@', key)
             if not m2:
-                key = trunc(key) 
+                key = trunc(key)
             amap[key] = alias.decode('utf-8')
     return amap
 
@@ -317,7 +318,7 @@ def which_db_version(cursor):
     Return version of DB schema as string.
 
     Return '5', if iOS 5.
-    Return '6', if iOS 6 or iOS 7.
+    Return '6', if iOS 6/7/8/9/10/11
 
     """
     query = "select count(*) from sqlite_master where name = 'handle'"
@@ -345,17 +346,17 @@ def build_msg_query(numbers, emails):
     Returns: query (string), params (tuple)"""
 
     query = """
-SELECT 
-    rowid, 
-    date, 
-    address, 
-    text, 
-    flags, 
-    group_id, 
-    madrid_handle, 
+SELECT
+    rowid,
+    date,
+    address,
+    text,
+    flags,
+    group_id,
+    madrid_handle,
     madrid_flags,
     madrid_error,
-    is_madrid, 
+    is_madrid,
     madrid_date_read,
     madrid_date_delivered
 FROM message """
@@ -420,25 +421,25 @@ WHERE
     return query, tuple(params)
 
 
-def fix_imessage_date(seconds):
+def fix_imessage_date(nanoseconds):
     """
-    Convert seconds to unix epoch time.
-    
-    iMessage dates are not standard unix time.  They begin at midnight on 
+    Convert nanoseconds to unix epoch time.
+
+    iMessage dates are not standard unix time.  They are in nanoseconds and begin at midnight on
     2001-01-01, instead of the usual 1970-01-01.
-    
-    To convert to unix time, add 978,307,200 seconds!
-    
+
+    To convert to unix time, divide by 10^9 add 978,307,200 seconds!
+
     Source: http://d.hatena.ne.jp/sak_65536/20111017/1318829688
     (Thanks, Google Translate!)
     """
-    return seconds + 978307200
+    return (nanoseconds/1000000000) + 978307200
 
 
 def imessage_date(row):
     """
     Return date for iMessage.
-    
+
     iMessage messages have 2 dates: madrid_date_read and
     madrid_date_delivered. Only one is set for each message, so find the
     non-zero one, fix it so it is standard unix time, and return it.
@@ -458,9 +459,6 @@ def convert_date(unix_date, format):
         return ds.decode('utf-8')
     return ds
 
-    #return ds
-
-
 
 def convert_date_ios6(unix_date, format):
     date = fix_imessage_date(unix_date)
@@ -471,74 +469,74 @@ def convert_address_imessage(row, me, alias_map):
     """
     Find the iMessage address in row (a sqlite3.Row) and return a tuple of
     address strings: (from_addr, to_addr).
-    
+
     In an iMessage message, the address could be an email or a phone number,
     and is found in the `madrid_handle` field.
-    
+
     Next, look for alias in alias_map.  Otherwise, use formatted address.
-    
+
     Use `madrid_flags` to determine direction of the message.  (See wiki
     page for Meaning of FLAGS fields discussion.)
-        
+
     """
     incoming_flags = (12289, 77825)
     outgoing_flags = (36869, 102405)
-    
+
     if isinstance(me, bytes):
         me = me.decode('utf-8')
-        
+
     # If madrid_handle is phone number, have to truncate it.
     email_match = re.search('@', row['madrid_handle'])
     if email_match:
         handle = row['madrid_handle']
     else:
         handle = trunc(row['madrid_handle'])
-    
+
     if handle in alias_map:
         other = alias_map[handle]
     else:
         other = format_address(row['madrid_handle'])
-        
+
     if row['madrid_flags'] in incoming_flags:
         from_addr = other
         to_addr = me
     elif row['madrid_flags'] in outgoing_flags:
         from_addr = me
         to_addr = other
-        
+
     return (from_addr, to_addr)
 
 
 def convert_address_sms(row, me, alias_map):
     """
     Find the sms address in row (a sqlite3.Row) and return a tuple of address
-    strings: (from_addr, to_addr). 
-    
+    strings: (from_addr, to_addr).
+
     In an SMS message, the address is always a phone number and is found in
     the `address` field.
-    
+
     Next, look for alias in alias_map.  Otherwise, use formatted address.
-    
+
     Use `flags` to determine direction of the message:
         2 = 'incoming'
         3 = 'outgoing'
     """
     if isinstance(me, bytes):
         me = me.decode('utf-8')
-    
+
     tr_address = trunc(row['address'])
     if tr_address in alias_map:
         other = alias_map[tr_address]
     else:
         other = format_phone(row['address'])
-        
+
     if row['flags'] == 2:
         from_addr = other
         to_addr = me
     elif row['flags'] == 3:
         from_addr = me
         to_addr = other
-        
+
     return (from_addr, to_addr)
 
 
@@ -601,37 +599,37 @@ def skip_sms(row):
 def skip_imessage(row):
     """
     Return True, if iMessage row should be skipped.
-    
+
     I whitelist madrid_flags values that I understand:
-    
+
          36869   Sent from iPhone to SINGLE PERSON (address)
         102405   Sent to SINGLE PERSON (text contains email, phone, or url)
          12289   Received by iPhone
          77825   Received (text contains email, phone, or url)
-    
+
     Don't handle iMessage Group chats:
-        
+
          32773   Sent from iPhone to GROUP
          98309   Sent to GROUP (text contains email, phone or url)
-     
+
     See wiki page on FLAGS fields for more details:
-        
+
     """
     flags_group_msgs = (32773, 98309)
     flags_whitelist = (36869, 102405, 12289, 77825)
     retval = False
     if row['madrid_error'] != 0:
         logging.info("Skipping msg (%s) with error code %s. Address: %s. "
-                        "Text: %s" % (row['rowid'], row['madrid_error'], 
+                        "Text: %s" % (row['rowid'], row['madrid_error'],
                         row['address'], row['text']))
         retval = True
     elif row['madrid_flags'] in flags_group_msgs:
-        logging.info("Skipping msg (%s). Don't handle iMessage group chat. " 
+        logging.info("Skipping msg (%s). Don't handle iMessage group chat. "
                      "Text: %s" % (row['rowid'], row['text']))
         retval = True
     elif row['madrid_flags'] not in flags_whitelist:
-        logging.info("Skipping msg (%s). Don't understand madrid_flags: %s. " 
-                        "Text: %s" % (row['rowid'], row['madrid_flags'], 
+        logging.info("Skipping msg (%s). Don't understand madrid_flags: %s. "
+                        "Text: %s" % (row['rowid'], row['madrid_flags'],
                         row['text']))
         retval = True
     elif not row['madrid_handle']:
@@ -690,38 +688,38 @@ def get_messages_ios6(cursor, query, params, aliases, cmd_args):
 
 def msgs_human(messages, header):
     """
-    Return messages, with optional header row. 
-    
+    Return messages, with optional header row.
+
     One pipe-delimited message per line in format:
-    
+
     date | from | to | text
-    
+
     Width of 'from' and 'to' columns is determined by widest column value
     in messages, so columns align.
     """
     output = ""
     if messages:
-        # Figure out column widths 
+        # Figure out column widths
         max_from = max([len(x['from']) for x in messages])
         max_to = max([len(x['to']) for x in messages])
         max_date = max([len(x['date']) for x in messages])
-    
+
         from_width = max(max_from, len('From'))
         to_width = max(max_to, len('To'))
         date_width = max(max_date, len('Date'))
 
         headers_width = from_width + to_width + date_width + 9
-    
+
         msgs = []
         if header:
             htemplate = u"{0:{1}} | {2:{3}} | {4:{5}} | {6}"
-            hrow = htemplate.format('Date', date_width, 'From', from_width, 
+            hrow = htemplate.format('Date', date_width, 'From', from_width,
                                    'To', to_width, 'Text')
             msgs.append(hrow)
         for m in messages:
             text = m['text'].replace("\n","\n" + " " * headers_width)
             template = u"{0:{1}} | {2:>{3}} | {4:>{5}} | {6}"
-            msg = template.format(m['date'], date_width, m['from'], from_width, 
+            msg = template.format(m['date'], date_width, m['from'], from_width,
                                   m['to'], to_width, text)
             msgs.append(msg)
         msgs.append('')
@@ -757,19 +755,19 @@ def output(messages, out_file, format, header):
         fh = open(out_file, 'w')
     else:
         fh = sys.stdout
-        
+
     if format == 'human':
         fmt_msgs = msgs_human
     elif format == 'csv':
         fmt_msgs = msgs_csv
     elif format == 'json':
         fmt_msgs = msgs_json
-    
+
     try:
         fh.write(fmt_msgs(messages, header))
     except:
         raise
-        
+
     fh.close()
 
 
@@ -781,15 +779,15 @@ def main():
         except:
             parser.print_help()
             sys.exit(2)     # bash builtins return 2 for incorrect usage.
-    
+
         if args.quiet:
             logging.basicConfig(level=logging.WARNING)
         elif args.verbose:
             logging.basicConfig(level=logging.DEBUG)
         else:
             logging.basicConfig(level=logging.INFO)
-        
-        global ORIG_DB, COPY_DB 
+
+        global ORIG_DB, COPY_DB
         ORIG_DB = args.db_file or find_sms_db()
         COPY_DB = copy_sms_db(ORIG_DB)
         aliases = alias_map(args.aliases)
@@ -822,6 +820,6 @@ def main():
                 os.remove(COPY_DB)
                 logging.debug("Deleted COPY_DB: %s" % COPY_DB)
 
-    
+
 if __name__ == '__main__':
     main()
