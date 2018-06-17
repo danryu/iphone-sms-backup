@@ -3,15 +3,14 @@ Description
 
 Note: This version of the script is only compatible with Python 3!
 
-
 Backup your iPhone SMS and iMessage text messages.
 
-Works with iOS6, iOS7, Tested successfully with ios9.
+Works with iOS 6 / 7 / 8 / 9 / 10 / 11.
 
 (And, it continues to work with iOS5, if anyone still finds that useful...)
 
-Why? 
----- 
+Why?
+----
 Your iPhone stores a copy of all your SMS and iMessage text messages in a
 sqlite database. But, if you want to view them all on your iPhone, it's not so
 easy. Be prepared to do a lot of scrolling.
@@ -26,9 +25,9 @@ order to make your text messages easier to read.
 Transformations possible with `sms-backup.py`:
 
   * Better date formatting.
-  
+
   * Consistent formatting of phone numbers.
-  
+
   * Replacement of phone numbers with names.
 
 How?
@@ -41,7 +40,7 @@ still choose to "Manually Backup Up" within iTunes, which will do a one-time
 backup to your computer, and then resume the automatic iCloud backups.
 
 Each time you sync/backup your iPhone, the SMS sqlite db file is copied to
-your computer. 
+your computer.
 
 When you run `sms-backup.py`, it finds the backup db file, makes a temporary
 copy of it, selects the text messages you want from the temporary copy, and
@@ -50,38 +49,38 @@ then exports them.
 Examples
 ========
     $ sms-backup.py
-    
+
     2010-01-01 15:31:44 |             Me | (555) 555-1212 | I love donuts!!
     2010-01-02 16:17:58 | (555) 555-1212 |             Me | I love a man who loves donuts!!!
     2010-01-02 17:01:19 |             Me | (999) 999-1212 | I don't feel so good...
     ...
-    
+
     $ sms-backup.py --myname Tom \
                     --alias "555-555-1212=Michele" \
                     --phone "5555551212" \
                     --phone "1112223333" \
                     --date-format "%b %d, %Y at %I:%M %p" \
                     --format json
-    
+
     [
       {
         "date": "Jan 01, 2010 at 03:31 PM",
-        "from": "Tom", 
-        "text": "I love donuts!!", 
+        "from": "Tom",
+        "text": "I love donuts!!",
         "to": "Michele"
-      }, 
+      },
       {
         "date": "Jan 02, 2010 at 04:17 PM",
-        "from": "Michele", 
-        "text": "I love a man who loves donuts!!!", 
+        "from": "Michele",
+        "text": "I love a man who loves donuts!!!",
         "to": "Tom"
-      }, 
+      },
       {
         "date": "Jan 02, 2010 at 06:00 PM",
-        "from": "Tom", 
-        "text": "Just checking in...where are you?", 
+        "from": "Tom",
+        "text": "Just checking in...where are you?",
         "to": "(111) 222-3333"
-      }, 
+      },
       ...
 
 Usage
@@ -145,9 +144,9 @@ Known Limitations
     in the db name with --input.  (I haven't tested it, though...)
 
   * Assumes encoding of texts is 'utf-8'...and there's no way to change it.
-    
+
   * Does not try to recover texts with photos.  Just skips past them.
-  
+
   * Does not handle group chats.
 
 License
