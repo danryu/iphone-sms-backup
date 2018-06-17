@@ -135,22 +135,26 @@ def setup_and_parse(parser):
 def strip(phone):
     """Remove all non-numeric digits in phone string."""
     if phone:
-        return re.sub('[^\d]', '', phone)
+        ## ESSENTIALLY REMOVE strip function - because it removes good data
+        #return re.sub('[^\d]', '', phone)
+        return phone
 
 
 def trunc(phone):
     """Strip phone, then truncate it.  Return last 10 digits"""
     if phone:
-        ph = strip(phone)
-        return ph[-10:]
+        ## ESSENTIALLY REMOVE trunc function - because it removes good data
+        #ph = strip(phone)
+        #return ph[-10:]
+        return phone
 
 
 def format_phone(phone):
     """
     Return consistently formatted phone number for output.
-    
+
     Note: US-centric formatting.
-    
+
     If phone < 10 digits, return stripped phone.
     If phone = 10 digits, return '(555) 555-1212'.
     If phone = 11 digits and 1st digit = '1', return '(555) 555-1212'.
